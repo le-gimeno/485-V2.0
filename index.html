@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Revisión de Carreras UNDEF</title>
+  <meta name="description" content="Revisión de planes de estudio y reglamentos de carrera UNDEF contra la RR 485/25, con semáforo, informe y Word con control de cambios SA-UNDEF.">
+  <link rel="stylesheet" href="estilos.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="docx-motor.js" defer></script>
+  <script src="controles.js" defer></script>
+  <script src="almacen.js" defer></script>
+  <script src="exportar.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="cabecera">
+    <div class="contenedor">
+      <h1>Revisión de carreras UNDEF</h1>
+      <p>Formularios A, B y C, reglamentos de carrera y reglamentos generales, contra la RR 485/25 y la normativa vigente. Devuelve un informe con semáforo y el Word con control de cambios firmado <strong>SA-UNDEF</strong>.</p>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <div id="avisos" class="avisos" aria-live="polite"></div>
+    <p id="modo" class="modo">Modo copiar y pegar: el pedido se lleva a claude.ai y la respuesta se pega acá. Usa tu suscripción de Claude, sin costo extra.</p>
+
+    <section class="tarjeta">
+      <h2>1. Documentos a revisar</h2>
+      <div id="zona" class="zona">
+        <p>Arrastrá acá uno o más archivos <strong>.docx</strong></p>
+        <label class="boton secundario">Elegir archivos<input id="archivos" type="file" accept=".docx" multiple hidden></label>
+        <p class="nota">Si subís el Formulario A y el C de la misma carrera, se cruzan entre sí.</p>
+      </div>
+      <ul id="lista-docs" class="lista-docs"></ul>
+
+      <div class="grilla">
+        <label class="campo">
+          <span>Tipo de revisión</span>
+          <select id="tipo-revision">
+            <option value="completa">Completa (todo el semáforo)</option>
+            <option value="rapida">Rápida: solo lo fundamental (rojo) – gasta menos cupo</option>
+          </select>
+        </label>
+        <label class="campo">
+          <span>Comparar con una revisión anterior (opcional)</span>
+          <select id="anterior"><option value="">— ninguna (revisión nueva) —</option></select>
+        </label>
+      </div>
+      <label class="campo">
+        <span>¿Algo en particular? (opcional)</span>
+        <textarea id="pedido" rows="2" placeholder="Ej.: revisar solo el capítulo 2; prestar atención a la PPS…"></textarea>
+      </label>
+
+      <!-- Modo automático (abierta con iniciar.bat) -->
+      <button id="revisar" class="boton" type="button" disabled hidden>Revisar</button>
+      <p id="recuperar" class="aviso-suave" hidden>Hay una revisión terminada que todavía no se mostró. Cargá el mismo .docx que se revisó y tocá <button id="boton-recuperar" class="boton chico" type="button">Recuperar resultado</button></p>
+      <div id="progreso" class="progreso" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="progreso-texto">Claude está revisando el documento…</span>
+        <button id="cancelar" class="boton secundario chico" type="button">Cancelar</button>
+        <p id="progreso-detalle" class="progreso-detalle"></p>
+        <p class="nota">Una revisión completa puede tardar entre 5 y 20 minutos según el largo del documento. Podés seguir usando la computadora; no cierres esta pestaña ni la ventana del servidor.</p>
+      </div>
+
+      <!-- Modo copiar y pegar (abierta desde la web) -->
+      <div id="manual" class="manual">
+        <h3>2. Llevar el pedido a Claude</h3>
+        <ol class="pasos">
+          <li>Copiá el pedido (o descargalo, si es muy largo) y pegalo o adjuntalo en un <strong>chat nuevo de claude.ai</strong>.</li>
+          <li>Claude responde con un bloque de texto (JSON). Si se corta, escribile <em>continuá</em>.</li>
+          <li>Copiá toda la respuesta (todas las partes, en orden) y pegala abajo.</li>
+        </ol>
+        <div class="acciones">
+          <button id="copiar-pedido" class="boton" type="button" disabled>Copiar pedido</button>
+          <button id="descargar-pedido" class="boton secundario" type="button" disabled>Descargar pedido (.txt)</button>
+        </div>
+        <label class="check"><input id="incluir-metodo" type="checkbox" checked> <span>Incluir el método completo (dejalo tildado si tu cuenta de Claude no tiene el skill <em>revision-carreras-undef</em>)</span></label>
+        <label class="campo">
+          <span>Respuesta de Claude</span>
+          <textarea id="respuesta" rows="6" placeholder="Pegá acá la respuesta completa de Claude…"></textarea>
+        </label>
+        <button id="cargar-respuesta" class="boton" type="button">Mostrar informe</button>
+      </div>
+    </section>
+
+    <section id="resultado" class="tarjeta" hidden>
+      <div class="titulo-acciones">
+        <h2>Informe</h2>
+        <div class="acciones">
+          <button id="descargar-informe" class="boton" type="button">Descargar informe (.docx)</button>
+          <button id="copiar" class="boton secundario" type="button">Copiar como texto</button>
+        </div>
+      </div>
+      <p id="guardado" class="nota" aria-live="polite"></p>
+      <div id="informe"></div>
+
+      <h2 class="separado">Word con control de cambios</h2>
+      <p class="nota">Tildá o destildá cada observación (casilla "Word"; también por color, desde el semáforo) y, si querés, editá el texto antes de generar. Nada se acepta ni se borra de lo que ya tenía el documento.</p>
+      <div class="grilla">
+        <label class="campo">
+          <span>Autor de las marcas y comentarios</span>
+          <input id="autor" type="text" value="SA-UNDEF">
+        </label>
+        <label class="check"><input id="unificar" type="checkbox" checked> <span>Unificar autores: las marcas y comentarios de otros revisores también quedan firmados con este autor (se conservan todos)</span></label>
+      </div>
+      <button id="generar" class="boton" type="button">Generar .docx con control de cambios</button>
+      <div id="salidas"></div>
+
+      <h2 class="separado">Nota de devolución (borrador)</h2>
+      <p class="nota">Texto para enviar a la unidad académica, armado a partir del informe. Editalo libremente.</p>
+      <textarea id="nota" rows="14" aria-label="Nota de devolución"></textarea>
+      <div class="acciones arriba">
+        <button id="descargar-nota" class="boton secundario" type="button">Descargar nota (.docx)</button>
+        <button id="copiar-nota" class="boton secundario" type="button">Copiar nota</button>
+        <button id="regenerar-nota" class="boton secundario" type="button">Volver a armar desde el informe</button>
+      </div>
+    </section>
+
+    <details class="tarjeta" open>
+      <summary>Revisiones guardadas <span id="guardadas-cantidad"></span></summary>
+      <p class="nota">Cada revisión se guarda sola en este navegador, con sus documentos y tus cambios: podés reabrirla y volver a generar el Word sin consultar a Claude. Exportala para tener una copia o pasarla a otra computadora.</p>
+      <div class="acciones abajo">
+        <button id="planilla" class="boton secundario" type="button">Descargar planilla de seguimiento (.xlsx)</button>
+        <label class="boton secundario">Importar revisión (.json)<input id="importar" type="file" accept=".json,application/json" hidden></label>
+      </div>
+      <div id="guardadas"></div>
+    </details>
+
+    <details class="tarjeta">
+      <summary>Normativa de referencia (PDF)</summary>
+      <p id="normas-ayuda" class="nota"></p>
+      <ul id="normas" class="lista-normas"></ul>
+    </details>
+  </main>
+
+  <footer class="contenedor pie">
+    <p>Secretaría Académica – UNDEF. Revisión asistida por IA: el informe y las marcas deben ser revisados por una persona antes de enviarse.</p>
+  </footer>
+</body>
+</html>
